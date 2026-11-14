@@ -41,9 +41,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'APPNAME',
-        short_name: 'APPNAME',
-        description: 'Explore APPNAME.',
+        name: 'spending',
+        short_name: 'spending',
+        description: 'Explore spending.',
         start_url: '/',
         scope: '/',
         display: 'standalone',

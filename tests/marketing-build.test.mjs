@@ -19,7 +19,7 @@ test('real marketing builds publish canonical crawl files and exclude preview pa
     symlinkSync(realpathSync(join(marketing, 'node_modules')), join(fixture, 'node_modules'), 'junction')
     for (const path of ['astro.config.ts', 'src/site.ts']) {
       const file = join(fixture, path)
-      writeFileSync(file, readFileSync(file, 'utf8').replaceAll('APPNAME', 'seo-template-check'))
+      writeFileSync(file, readFileSync(file, 'utf8').replaceAll('spending', 'seo-template-check'))
     }
     const origin = 'https://about-seo-template-check.proappstore.online'
     const urls = ['/', '/privacy/', '/terms/'].map((path) => new URL(path, origin).href)

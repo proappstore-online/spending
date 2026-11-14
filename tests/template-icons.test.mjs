@@ -47,7 +47,7 @@ test('a copied template builds favicon, Apple-touch and install references to ne
     symlinkSync(realpathSync(join(root, 'web/node_modules')), join(fixture, 'node_modules'), 'junction')
     for (const path of ['index.html', 'vite.config.ts', 'package.json']) {
       const file = join(fixture, path)
-      writeFileSync(file, readFileSync(file, 'utf8').replaceAll('APPNAME', 'icon-template-check'))
+      writeFileSync(file, readFileSync(file, 'utf8').replaceAll('spending', 'icon-template-check'))
     }
     const result = spawnSync(process.execPath, [process.env.npm_execpath, 'exec', 'vite', 'build'], {
       cwd: fixture, encoding: 'utf8', timeout: 120_000,

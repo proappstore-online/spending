@@ -11,7 +11,7 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 800 } } },
   ],
   webServer: {
-    command: 'pnpm --filter @APPNAME/web build && pnpm --filter @APPNAME/web preview --host 127.0.0.1 --port 4196 --strictPort',
+    command: 'pnpm --filter @spending/web build && pnpm --filter @spending/web preview --host 127.0.0.1 --port 4196 --strictPort',
     url: 'http://127.0.0.1:4196',
     reuseExistingServer: false,
     timeout: 120000,

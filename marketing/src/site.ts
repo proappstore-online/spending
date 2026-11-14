@@ -9,11 +9,11 @@
  * against what your app actually does before you rely on them.
  */
 export const site = {
-  appId: 'APPNAME',
-  name: 'APPNAME',
-  appUrl: 'https://APPNAME.proappstore.online/',
+  appId: 'spending',
+  name: 'spending',
+  appUrl: 'https://spending.proappstore.online/',
   /** Who runs the app; named as the operator on the legal pages and in the footer. */
-  owner: 'The APPNAME team',
+  owner: 'The spending team',
   /** Where people can reach you. Leave empty to point them at the contact form on the home page instead. */
   contactEmail: '',
   /** Optional help page or support link shown in the footer. */
@@ -33,20 +33,20 @@ export const site = {
     paper: '#ffffff',
     paperDeep: '#f7f7f7',
   },
-  headline: 'Explore APPNAME.',
-  summary: 'Describe in one or two sentences what APPNAME does and who it is for.',
-  ctaLabel: 'Open APPNAME',
+  headline: 'Explore spending.',
+  summary: 'Describe in one or two sentences what spending does and who it is for.',
+  ctaLabel: 'Open spending',
   /** Optional hero image, e.g. { src: '/assets/hero.png', alt: '...' }. Without one, a brand-colour panel is shown. */
   heroImage: null as Image | null,
   /** Optional product screenshots, shown in a gallery. */
   screenshots: [] as Image[],
   benefits: [
-    { title: 'First benefit', body: 'What someone can do with APPNAME that matters to them.' },
+    { title: 'First benefit', body: 'What someone can do with spending that matters to them.' },
     { title: 'Second benefit', body: 'Another concrete outcome, in plain words.' },
     { title: 'Third benefit', body: 'A third reason to try it.' },
   ],
   howItWorks: [
-    { title: 'Open the app', body: 'Go to APPNAME in any modern browser. It installs like an app on phone and desktop.' },
+    { title: 'Open the app', body: 'Go to spending in any modern browser. It installs like an app on phone and desktop.' },
     { title: 'Sign in', body: 'Use your GitHub or Google account. No new password to remember.' },
     { title: 'Get started', body: 'Describe the first thing a new user does.' },
   ],
