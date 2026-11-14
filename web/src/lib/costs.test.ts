@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   compact, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
 } from './costs'
-import { GCP_TABLE_RE, parseAnthropic, parseBigQuery, parseCloudflare, parseOpenAi } from './providers'
+import { billingCycles, GCP_TABLE_RE, parseAnthropic, parseBigQuery, parseCloudflare, parseOpenAi } from './providers'
 
 const row = (date: string, amount: number, service = 'api', currency = 'USD'): CostRow => ({ date, service, amount, currency })
 
@@ -65,6 +65,13 @@ describe('provider parsers', () => {
   it('reads Cloudflare billable-usage records', () => {
     const json = { result: [{ ChargePeriodStart: '2026-11-13T00:00:00Z', BilledCost: 0.75, BillingCurrency: 'USD', ServiceName: 'D1' }] }
     expect(parseCloudflare(json)).toEqual([row('2026-11-13', 0.75, 'D1')])
+  })
+
+  it('finds the current and previous Cloudflare billing cycles', () => {
+    const iso = (dates: Date[]) => dates.map((d) => d.toISOString().slice(0, 10))
+    expect(iso(billingCycles(23, new Date('2026-11-14T08:00:00Z')))).toEqual(['2026-09-23', '2026-10-23'])
+    expect(iso(billingCycles(23, new Date('2026-11-23T00:00:00Z')))).toEqual(['2026-10-23', '2026-11-23'])
+    expect(iso(billingCycles(31, new Date('2026-03-05T00:00:00Z')))).toEqual(['2026-01-31', '2026-02-28'])
   })
 
   it('reads BigQuery rows', () => {

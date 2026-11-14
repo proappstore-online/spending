@@ -152,9 +152,33 @@ export function parseCloudflare(json: unknown): CostRow[] {
     }))
 }
 
-async function fetchCloudflare(settings: Settings): Promise<CostRow[]> {
+/** Start of the billing cycle containing `today`, and of the one before it, for a cycle that renews on `anchorDay`. */
+export function billingCycles(anchorDay: number, today: Date): [Date, Date] {
+  // A cycle anchored on the 31st starts on the last day of shorter months.
+  const start = (monthOffset: number) => {
+    const y = today.getUTCFullYear()
+    const m = today.getUTCMonth() + monthOffset
+    return new Date(Date.UTC(y, m, Math.min(anchorDay, new Date(Date.UTC(y, m + 1, 0)).getUTCDate())))
+  }
+  const offset = start(0) <= today ? 0 : -1
+  return [start(offset - 1), start(offset)]
+}
+
+async function fetchCloudflare(settings: Settings, today: Date): Promise<CostRow[]> {
   if (!settings.cloudflareAccountId) throw new Error('Add your Cloudflare account ID first.')
-  return parseCloudflare(await proxyJson(`api.cloudflare.com/client/v4/accounts/${settings.cloudflareAccountId}/billable-usage`))
+  const base = `api.cloudflare.com/client/v4/accounts/${settings.cloudflareAccountId}/billable-usage`
+  const info = (await proxyJson(`${base}/info`)) as { result?: { subscriptions?: { billing_cycle_anchor_timestamp?: string }[] } }
+  const anchor = info.result?.subscriptions?.[0]?.billing_cycle_anchor_timestamp
+  if (!anchor) throw new Error('This Cloudflare account has no pay-as-you-go subscription to report.')
+  // Cloudflare only returns usage from a cycle's first day onwards, so each
+  // request covers one whole cycle: the previous one, then the current one.
+  const [previous, current] = billingCycles(new Date(anchor).getUTCDate(), today)
+  const tomorrow = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + 1))
+  const rows: CostRow[] = []
+  for (const [from, to] of [[previous, current], [current, tomorrow]] as const) {
+    rows.push(...parseCloudflare(await proxyJson(`${base}?from=${isoDay(from)}&to=${isoDay(to)}`)))
+  }
+  return rows
 }
 
 // --- Google Cloud: BigQuery billing export, read with the user's Google token ---
@@ -201,7 +225,7 @@ export function fetchCosts(id: ProviderId, settings: Settings, googleToken: stri
   switch (id) {
     case 'openai': return fetchOpenAi(since)
     case 'anthropic': return fetchAnthropic(since, today)
-    case 'cloudflare': return fetchCloudflare(settings)
+    case 'cloudflare': return fetchCloudflare(settings, today)
     case 'gcp': return fetchGcp(settings, since, googleToken)
   }
 }
