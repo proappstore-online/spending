@@ -18,7 +18,7 @@
     "dev:marketing": "pnpm --filter @spending/marketing dev",
     "build:marketing": "pnpm --filter @spending/marketing build",
     "typecheck": "pnpm --filter @spending/web exec tsc -b",
-    "test": "pnpm --filter @spending/web exec tsc -b && node --test tests/*.test.mjs",
+    "test": "pnpm --filter @spending/web exec tsc -b && pnpm --filter @spending/web test && node --test tests/*.test.mjs",
     "test:browser": "playwright test"
   },
   "devDependencies": {

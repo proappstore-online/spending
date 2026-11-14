@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
-import { initPro, AppShell, useAuth, type NavItem } from '@proappstore/sdk'
-import { Card, PageHeader, ProProfilePage, SignInButtons, TextSizeToggle, ThemeToggle } from '@proappstore/sdk/ui'
+import { AppShell, useAuth, type NavItem } from '@proappstore/sdk'
+import { Card, EmptyState, PageHeader, ProProfilePage, SignInButtons, Spinner, TextSizeToggle, ThemeToggle } from '@proappstore/sdk/ui'
 import { AppTopbar, IconNavigation, NavigationIcon } from './AppNavigation'
-
-const app = initPro({
-  appId: 'spending',
-  authMode: 'platform-cookie',
-  monitoring: { build: { sha: import.meta.env.VITE_COMMIT_SHA } },
-})
+import { app } from './lib/app'
+import { useSpending } from './lib/useSpending'
+import { Connections } from './pages/Connections'
+import { Overview } from './pages/Overview'
+import { Subscriptions } from './pages/Subscriptions'
 
 // Keep Profile in NAV for page titles; its visible navigation target is the avatar.
 // Give each primary screen an icon. Labels remain accessible on mobile and visible on desktop.
 const NAV: NavItem[] = [
-  { label: 'Home', href: '/', title: 'spending', icon: <NavigationIcon path="m3 10 9-7 9 7v10H3V10Zm6 10v-7h6v7"/> },
-  { label: 'About', href: '/about', title: 'About — spending', icon: <NavigationIcon path="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 7v7m0-10v.01"/> },
-  { label: 'Profile', href: '/profile', title: 'Profile — spending' },
+  { label: 'Overview', href: '/', title: 'Spending', icon: <NavigationIcon path="M4 20V10m6 10V4m6 16v-7m4 7H2"/> },
+  { label: 'Connections', href: '/connections', title: 'Connections — Spending', icon: <NavigationIcon path="M9 7H7a5 5 0 0 0 0 10h2m6-10h2a5 5 0 0 1 0 10h-2M8 12h8"/> },
+  { label: 'Subscriptions', href: '/subscriptions', title: 'Subscriptions — Spending', icon: <NavigationIcon path="M3 7h18v10H3V7Zm0 4h18M7 15h3"/> },
+  { label: 'Profile', href: '/profile', title: 'Profile — Spending' },
 ]
 
 function navigate(path: string) {
@@ -29,7 +29,7 @@ export default function App() {
     window.addEventListener('popstate', changed)
     return () => window.removeEventListener('popstate', changed)
   }, [])
-  return <AppShell app={app} appName="spending" nav={NAV} branding="app" access="local"
+  return <AppShell app={app} appName="Spending" nav={NAV} branding="app" access="local"
     renderNav={context => <IconNavigation {...context}/>}
     renderLocalTopbar={context => <AppTopbar {...context} currentPath={path} onNavigate={navigate}/>}
     onNavigate={navigate}>
@@ -38,24 +38,20 @@ export default function App() {
 }
 
 function Screens({ path }: { path: string }) {
-  if (path === '/profile') return <Profile/>
-  if (path === '/about') return <About/>
-  return <Home/>
-}
-
-function Home() {
   const { user } = useAuth()
-  return <div className="mx-auto w-full max-w-3xl px-6 py-10">
-    <PageHeader title="spending" description={user ? `Signed in as ${user.name}.` : 'Welcome. Open Profile to sign in or change your preferences.'}/>
-    <p className="text-sm text-[var(--muted)]">Build your app here. Add primary screens to NAV with icons. The avatar always opens your Profile page.</p>
-  </div>
-}
-
-function About() {
-  return <div className="mx-auto w-full max-w-3xl px-6 py-10">
-    <PageHeader title="About" description="What spending is for."/>
-    <p className="text-sm text-[var(--muted)]">Replace this screen with your own. Error recovery, offline status, accessible navigation and page titles come from AppShell.</p>
-  </div>
+  const spending = useSpending(user?.id)
+  if (path === '/profile') return <Profile/>
+  if (!user) {
+    return <div className="mx-auto w-full max-w-3xl px-6 py-10">
+      <PageHeader title="Spending" description="See what you spend on Cloudflare, OpenAI, Anthropic, Google Cloud and your subscriptions in one place."/>
+      <EmptyState title="Sign in to start" description="Your keys and costs are private to your account." action={<SignInButtons app={app}/>}/>
+    </div>
+  }
+  if (spending.loading) return <div className="flex justify-center py-20"><Spinner/></div>
+  if (spending.loadError) return <div className="mx-auto w-full max-w-3xl px-6 py-10"><EmptyState title="Could not load your data" description={spending.loadError}/></div>
+  if (path === '/connections') return <Connections spending={spending}/>
+  if (path === '/subscriptions') return <Subscriptions spending={spending}/>
+  return <Overview spending={spending} onNavigate={navigate}/>
 }
 
 function Profile() {

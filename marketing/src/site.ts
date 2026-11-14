@@ -10,7 +10,7 @@
  */
 export const site = {
   appId: 'spending',
-  name: 'spending',
+  name: 'Spending',
   appUrl: 'https://spending.proappstore.online/',
   /** Who runs the app; named as the operator on the legal pages and in the footer. */
   owner: 'The spending team',
@@ -33,22 +33,22 @@ export const site = {
     paper: '#ffffff',
     paperDeep: '#f7f7f7',
   },
-  headline: 'Explore spending.',
-  summary: 'Describe in one or two sentences what spending does and who it is for.',
-  ctaLabel: 'Open spending',
+  headline: 'Every bill you run up, in one place.',
+  summary: 'Spending adds up what you pay Cloudflare, OpenAI, Anthropic and Google Cloud, plus the subscriptions you enter yourself, and warns you when a day costs far more than usual.',
+  ctaLabel: 'Open Spending',
   /** Optional hero image, e.g. { src: '/assets/hero.png', alt: '...' }. Without one, a brand-colour panel is shown. */
   heroImage: null as Image | null,
   /** Optional product screenshots, shown in a gallery. */
   screenshots: [] as Image[],
   benefits: [
-    { title: 'First benefit', body: 'What someone can do with spending that matters to them.' },
-    { title: 'Second benefit', body: 'Another concrete outcome, in plain words.' },
-    { title: 'Third benefit', body: 'A third reason to try it.' },
+    { title: 'One monthly total', body: 'Usage costs from each provider you connect and your flat subscriptions, added up for the month so far and projected to month end.' },
+    { title: 'Spike warnings', body: 'When a provider costs more than twice its usual day, the overview says so the next time you open it.' },
+    { title: 'Your keys stay yours', body: 'Each key is stored encrypted for your account only, is never shown again, and is only sent to the provider it belongs to.' },
   ],
   howItWorks: [
-    { title: 'Open the app', body: 'Go to spending in any modern browser. It installs like an app on phone and desktop.' },
+    { title: 'Open the app', body: 'Go to Spending in any modern browser. It installs like an app on phone and desktop.' },
     { title: 'Sign in', body: 'Use your GitHub or Google account. No new password to remember.' },
-    { title: 'Get started', body: 'Describe the first thing a new user does.' },
+    { title: 'Connect a provider', body: 'Paste a read-only billing key for Cloudflare, OpenAI or Anthropic, sign in to Google Cloud, or add a subscription by hand.' },
   ],
 }
 

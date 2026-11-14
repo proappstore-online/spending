@@ -41,9 +41,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'spending',
-        short_name: 'spending',
-        description: 'Explore spending.',
+        name: 'Spending',
+        short_name: 'Spending',
+        description: 'Track what you spend on Cloudflare, OpenAI, Anthropic, Google Cloud and your subscriptions in one place.',
         start_url: '/',
         scope: '/',
         display: 'standalone',

@@ -10,7 +10,7 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8')
 test('the starter uses independently branded shell controls', () => {
   const app = read('web/src/App.tsx')
 
-  assert.match(app, /<AppShell app=\{app\} appName="spending" nav=\{NAV\} branding="app" access="local"/)
+  assert.match(app, /<AppShell app=\{app\} appName="Spending" nav=\{NAV\} branding="app" access="local"/)
   assert.doesNotMatch(app, /Built for ProAppStore|href="https:\/\/proappstore\.online"/)
 })
 
@@ -29,15 +29,13 @@ test('the installed SDK keeps ProShell as the same component as AppShell', async
   assert.equal(sdk.ProShell, sdk.AppShell)
 })
 
-test('public starter metadata and manifest are neutral', () => {
+test('public metadata and manifest carry the app name, not the platform', () => {
   const html = read('web/index.html')
   const vite = read('web/vite.config.ts')
 
-  assert.match(html, /<title>spending<\/title>/)
-  assert.match(html, /content="Explore spending\."/)
+  assert.match(html, /<title>Spending<\/title>/)
   assert.doesNotMatch(html, /ProAppStore/)
-  assert.match(vite, /name: 'spending'/)
-  assert.match(vite, /description: 'Explore spending\.'/)
+  assert.match(vite, /name: 'Spending'/)
   assert.doesNotMatch(vite, /ProAppStore/)
 })
 
