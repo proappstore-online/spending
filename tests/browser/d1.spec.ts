@@ -41,6 +41,10 @@ test('D1 usage per database shows rows read and the drop against the week before
   const row = card.getByRole('row', { name: /pas-data-hiring/ })
   await expect(row).toContainText('10M')
   await expect(row).toContainText('-90%')
+  await expect(row.getByRole('img', { name: /rows read per day/ })).toBeVisible()
+  await expect(card).toContainText('of 25B rows read')
+  await expect(card).toContainText('of 50M rows written')
+  await expect(card).toContainText('Estimated D1 bill $0.00')
 })
 
 test('a D1 analytics failure is shown on the card and does not fail the cost sync', async ({ page }) => {

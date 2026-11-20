@@ -172,6 +172,8 @@ export interface D1Summary {
   /** Rows read over the last 7 full days, and over the 7 days before those. */
   last7: number
   prior7: number
+  /** Rows read per day over the 14 full days before today, oldest first. */
+  daily: number[]
 }
 
 /** Per database: this month's rows and list-price cost, and rows read in the last two full weeks. */
@@ -181,11 +183,13 @@ export function d1Summary(rows: D1UsageRow[], today: Date): D1Summary[] {
   const [weekStart, priorStart, todayIso] = [daysAgo(7), daysAgo(14), isoDay(today)]
   const map = new Map<string, D1Summary>()
   for (const r of rows) {
-    const s = map.get(r.database) ?? { database: r.database, rowsRead: 0, rowsWritten: 0, cost: 0, last7: 0, prior7: 0 }
+    const s = map.get(r.database) ?? { database: r.database, rowsRead: 0, rowsWritten: 0, cost: 0, last7: 0, prior7: 0, daily: Array(14).fill(0) }
     if (monthOf(r.date) === month) {
       s.rowsRead += r.rowsRead
       s.rowsWritten += r.rowsWritten
     }
+    const slot = Math.round((Date.parse(`${r.date}T00:00:00Z`) - Date.parse(`${priorStart}T00:00:00Z`)) / 86400000)
+    if (slot >= 0 && slot < 14) s.daily[slot] += r.rowsRead
     if (r.date >= weekStart && r.date < todayIso) s.last7 += r.rowsRead
     else if (r.date >= priorStart && r.date < weekStart) s.prior7 += r.rowsRead
     map.set(r.database, s)
@@ -194,6 +198,17 @@ export function d1Summary(rows: D1UsageRow[], today: Date): D1Summary[] {
     .map((s) => ({ ...s, cost: d1ListCost(s.rowsRead, s.rowsWritten) }))
     .filter((s) => s.rowsRead || s.rowsWritten || s.last7 || s.prior7)
     .sort((a, b) => b.cost - a.cost || b.last7 - a.last7)
+}
+
+/** Included monthly D1 allowance on the paid plan, account-wide. */
+export const D1_ALLOWANCE = { rowsRead: 25e9, rowsWritten: 50e6 }
+
+/** This month's account-wide D1 totals and the estimated bill: list price of only the usage above the allowance. */
+export function d1Billing(summaries: D1Summary[]) {
+  const rowsRead = summaries.reduce((n, s) => n + s.rowsRead, 0)
+  const rowsWritten = summaries.reduce((n, s) => n + s.rowsWritten, 0)
+  const billed = d1ListCost(Math.max(0, rowsRead - D1_ALLOWANCE.rowsRead), Math.max(0, rowsWritten - D1_ALLOWANCE.rowsWritten))
+  return { rowsRead, rowsWritten, billed }
 }
 
 /**

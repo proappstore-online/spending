@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button, Card, EmptyState, Input, PageHeader } from '@proappstore/sdk/ui'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  d1Summary, detectSpike, forecast, formatMoney, formatTotals, isoDay, monthOf, monthTotals, serviceTotals,
+  D1_ALLOWANCE, d1Billing, d1Summary, detectSpike, forecast, formatMoney, formatTotals, isoDay, monthOf, monthTotals, serviceTotals,
   subscriptionTotals, sumTotals, type ProviderId, type Totals,
 } from '../lib/costs'
 import { PROVIDERS, providerName } from '../lib/providers'
@@ -124,10 +124,18 @@ const rowCount = new Intl.NumberFormat(undefined, { notation: 'compact', maximum
 
 function D1ByDatabase({ cloudflare, today }: { cloudflare: NonNullable<Spending['costs']['cloudflare']>; today: Date }) {
   const databases = d1Summary(cloudflare.d1 ?? [], today)
+  const billing = d1Billing(databases)
+  const share = (cost: number, total: number) => total ? `${Math.round(cost / total * 100)}%` : '0%'
+  const listTotal = databases.reduce((n, d) => n + d.cost, 0)
   return <section aria-label="Cloudflare D1 by database" className="md:col-span-2">
     <Card>
       <h2 className="mb-1 text-lg font-bold">Cloudflare D1 by database</h2>
-      <p className="mb-3 text-xs text-[var(--muted)]">This month, at list price before the plan's included allowance. The week columns compare rows read over the last 7 full days with the 7 before.</p>
+      <p className="mb-3 text-xs text-[var(--muted)]">Cost is the list price, before the plan's included allowance, and its share of the account total. The trend shows rows read per day over the last 14 full days. The week columns compare rows read over the last 7 full days with the 7 before.</p>
+      {databases.length > 0 && <p className="mb-3 text-sm">
+        This month, account-wide: {rowCount.format(billing.rowsRead)} of {rowCount.format(D1_ALLOWANCE.rowsRead)} rows read
+        and {rowCount.format(billing.rowsWritten)} of {rowCount.format(D1_ALLOWANCE.rowsWritten)} rows written included.
+        Estimated D1 bill <strong>{formatMoney(billing.billed, 'USD')}</strong> (usage above the allowance only).
+      </p>}
       {cloudflare.d1Error && <p role="alert" className="mb-3 text-sm text-[var(--danger)]">
         D1 usage did not sync: {cloudflare.d1Error} The token needs Account Analytics: Read and D1: Read.
       </p>}
@@ -136,7 +144,7 @@ function D1ByDatabase({ cloudflare, today }: { cloudflare: NonNullable<Spending[
         : <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-[var(--muted)]">
-              <tr><th className="py-1 font-semibold">Database</th><th className="text-right font-semibold">Rows read</th><th className="text-right font-semibold">Rows written</th><th className="text-right font-semibold">Cost</th><th className="text-right font-semibold">Last 7 days</th><th className="text-right font-semibold">Change</th></tr>
+              <tr><th className="py-1 font-semibold">Database</th><th className="text-right font-semibold">Rows read</th><th className="text-right font-semibold">Rows written</th><th className="text-right font-semibold">List cost</th><th className="text-right font-semibold">14-day trend</th><th className="text-right font-semibold">Last 7 days</th><th className="text-right font-semibold">Change</th></tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
               {databases.map((d) => {
@@ -145,7 +153,8 @@ function D1ByDatabase({ cloudflare, today }: { cloudflare: NonNullable<Spending[
                   <td className="max-w-48 truncate py-1">{d.database}</td>
                   <td className="text-right">{rowCount.format(d.rowsRead)}</td>
                   <td className="text-right">{rowCount.format(d.rowsWritten)}</td>
-                  <td className="text-right">{formatMoney(d.cost, 'USD')}</td>
+                  <td className="text-right">{formatMoney(d.cost, 'USD')} <span className="text-[var(--muted)]">({share(d.cost, listTotal)})</span></td>
+                  <td className="text-right"><Trend daily={d.daily} label={`${d.database} rows read per day`}/></td>
                   <td className="text-right">{rowCount.format(d.last7)}</td>
                   <td className="text-right" style={{ color: change === null ? 'var(--muted)' : change < 0 ? 'var(--success)' : 'var(--danger)' }}>
                     {change === null ? 'new' : `${change > 0 ? '+' : ''}${Math.round(change * 100)}%`}
@@ -157,6 +166,16 @@ function D1ByDatabase({ cloudflare, today }: { cloudflare: NonNullable<Spending[
         </div>}
     </Card>
   </section>
+}
+
+function Trend({ daily, label }: { daily: number[]; label: string }) {
+  const max = Math.max(...daily, 1)
+  return <svg role="img" aria-label={label} viewBox="0 0 56 16" width="56" height="16" className="inline-block align-middle">
+    {daily.map((v, i) => {
+      const h = v ? Math.max(1, v / max * 16) : 0
+      return <rect key={i} x={i * 4} y={16 - h} width="3" height={h} fill="var(--accent)"/>
+    })}
+  </svg>
 }
 
 function Page({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  compact, compactD1, d1ListCost, d1Summary, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
+  compact, compactD1, d1Billing, d1ListCost, d1Summary, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
 } from './costs'
 import { billingCycles, GCP_TABLE_RE, parseAnthropic, parseD1Analytics, parseBigQuery, parseCloudflare, parseOpenAi } from './providers'
 
@@ -112,6 +112,21 @@ describe('D1 by database', () => {
       d1('2026-11-21', 1000), // today, still accruing
     ], today)
     expect(hiring).toMatchObject({ rowsRead: 1220, rowsWritten: 2, last7: 20, prior7: 200 })
+  })
+
+  it('keeps rows read per day for the 14 full days, oldest first', () => {
+    const [hiring] = d1Summary([d1('2026-11-06', 5), d1('2026-11-07', 100), d1('2026-11-20', 7), d1('2026-11-21', 1000)], today)
+    expect(hiring.daily).toHaveLength(14)
+    expect(hiring.daily[0]).toBe(100)
+    expect(hiring.daily[13]).toBe(7)
+    expect(hiring.daily.reduce((a, b) => a + b, 0)).toBe(107)
+  })
+
+  it('bills only usage above the account-wide allowance', () => {
+    const under = d1Billing(d1Summary([d1('2026-11-20', 10e9, 1e6, 'a'), d1('2026-11-20', 10e9, 1e6, 'b')], today))
+    expect(under).toMatchObject({ rowsRead: 20e9, rowsWritten: 2e6, billed: 0 })
+    const over = d1Billing(d1Summary([d1('2026-11-20', 20e9, 40e6, 'a'), d1('2026-11-20', 10e9, 20e6, 'b')], today))
+    expect(over.billed).toBeCloseTo(5 * 0.001 * 1000 + 10) // 5 bn rows over = $5, 10 M written over = $10
   })
 
   it('compacts to what the summary reads, with the same summary, and fits one KV value', () => {
