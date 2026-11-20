@@ -15,6 +15,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'inline',
       workbox: {
+        // vite-plugin-pwa only adds these for autoUpdate when injectRegister is
+        // 'auto'. With 'inline' they were dropped, so a new service worker sat
+        // waiting and every reload kept serving the old precached bundle (#6).
+        skipWaiting: true,
+        clientsClaim: true,
         // No map for the service worker either, and none in the precache (#393).
         sourcemap: false,
         globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2,wasm,json}'],
