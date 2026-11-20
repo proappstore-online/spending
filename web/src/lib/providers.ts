@@ -1,5 +1,5 @@
 import { app } from './app'
-import { isoDay, syncStart, type CostRow, type D1UsageRow, type ProviderCosts, type ProviderId, type Settings } from './costs'
+import { compactD1, isoDay, syncStart, type CostRow, type D1UsageRow, type ProviderCosts, type ProviderId, type Settings } from './costs'
 
 export interface Provider {
   id: ProviderId
@@ -229,7 +229,7 @@ export async function fetchD1Usage(settings: Settings, today = new Date()): Prom
         body: JSON.stringify({ query: D1_QUERY, variables: { account, from: isoDay(from), to: isoDay(to) } }),
       }), names))
     }
-    return { d1: rows }
+    return { d1: compactD1(rows, today) }
   } catch (error) {
     return { d1Error: error instanceof Error ? error.message : String(error) }
   }

@@ -196,6 +196,31 @@ export function d1Summary(rows: D1UsageRow[], today: Date): D1Summary[] {
     .sort((a, b) => b.cost - a.cost || b.last7 - a.last7)
 }
 
+/**
+ * Keep only what `d1Summary` reads, so the rows fit one KV value (64 KB): the last 14 days by day,
+ * earlier days of this month folded into one row per database on the 1st, and the `maxDatabases`
+ * costliest databases this month, the rest folded into "Other".
+ */
+export function compactD1(rows: D1UsageRow[], today: Date, maxDatabases = 15): D1UsageRow[] {
+  const month = monthOf(isoDay(today))
+  const firstOfMonth = `${month}-01`
+  const priorStart = isoDay(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 14)))
+  const keep = new Set(d1Summary(rows, today).slice(0, maxDatabases).map((s) => s.database))
+  const merged = new Map<string, D1UsageRow>()
+  for (const r of rows) {
+    if (r.date < priorStart && monthOf(r.date) !== month) continue
+    const date = r.date < priorStart ? firstOfMonth : r.date
+    const database = keep.has(r.database) ? r.database : 'Other'
+    const key = `${date}|${database}`
+    const existing = merged.get(key)
+    if (existing) {
+      existing.rowsRead += r.rowsRead
+      existing.rowsWritten += r.rowsWritten
+    } else merged.set(key, { date, database, rowsRead: r.rowsRead, rowsWritten: r.rowsWritten })
+  }
+  return [...merged.values()]
+}
+
 export function formatMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount)

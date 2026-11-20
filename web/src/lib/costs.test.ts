@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  compact, d1ListCost, d1Summary, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
+  compact, compactD1, d1ListCost, d1Summary, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
 } from './costs'
 import { billingCycles, GCP_TABLE_RE, parseAnthropic, parseD1Analytics, parseBigQuery, parseCloudflare, parseOpenAi } from './providers'
 
@@ -112,6 +112,25 @@ describe('D1 by database', () => {
       d1('2026-11-21', 1000), // today, still accruing
     ], today)
     expect(hiring).toMatchObject({ rowsRead: 1220, rowsWritten: 2, last7: 20, prior7: 200 })
+  })
+
+  it('compacts to what the summary reads, with the same summary, and fits one KV value', () => {
+    const rows = []
+    for (let db = 0; db < 60; db++) {
+      for (let n = 0; n < 52; n++) {
+        const date = new Date(today)
+        date.setUTCDate(date.getUTCDate() - n)
+        rows.push(d1(date.toISOString().slice(0, 10), 1_000_000 * (db + 1) + n, db, `pas-data-app-number-${db}`))
+      }
+    }
+    const compacted = compactD1(rows, today)
+    expect(JSON.stringify(compacted).length).toBeLessThan(40 * 1024)
+    const full = d1Summary(rows, today)
+    const small = d1Summary(compacted, today)
+    expect(small.filter((s) => s.database !== 'Other')).toEqual(full.slice(0, 15))
+    const other = small.find((s) => s.database === 'Other')!
+    expect(other.rowsRead).toBe(full.slice(15).reduce((sum, s) => sum + s.rowsRead, 0))
+    expect(other.last7).toBe(full.slice(15).reduce((sum, s) => sum + s.last7, 0))
   })
 
   it('orders databases by cost and drops ones with no usage', () => {
