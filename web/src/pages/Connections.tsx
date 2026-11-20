@@ -22,6 +22,7 @@ function ProviderCard({ provider, spending }: { provider: Provider; spending: Sp
   const [accountId, setAccountId] = useState(spending.settings.cloudflareAccountId ?? '')
   const [table, setTable] = useState(spending.settings.gcpTable ?? '')
   const [saving, setSaving] = useState(false)
+  const [replacing, setReplacing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function connect(event: React.FormEvent) {
@@ -40,6 +41,7 @@ function ProviderCard({ provider, spending }: { provider: Provider; spending: Sp
         synced = await spending.saveKey(id, key.trim())
         setKey('')
       }
+      setReplacing(false)
       if (synced) toast.show(`${provider.name} connected and synced.`, { variant: 'success' })
       else setError('Connection saved, but costs could not be synced. Check the error below and try again.')
     } catch (error) {
@@ -55,6 +57,8 @@ function ProviderCard({ provider, spending }: { provider: Provider; spending: Sp
     setError(null)
     try {
       await spending.disconnect(id)
+      // The next token must not be saved against the previous account.
+      setAccountId('')
       toast.show(`${provider.name} disconnected.`, { variant: 'success' })
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error))
@@ -67,6 +71,19 @@ function ProviderCard({ provider, spending }: { provider: Provider; spending: Sp
     setError(null)
     await spending.sync(id)
   }
+
+  const form = <form onSubmit={(event) => void connect(event)}>
+    <fieldset disabled={saving || syncing} className="min-w-0 space-y-3 border-0 p-0">
+      {id === 'cloudflare' && <Input label="Account ID" aria-label="Account ID" required pattern="[0-9a-f]{32}" value={accountId} onChange={(e) => setAccountId(e.target.value)}/>}
+      {id === 'gcp'
+        ? <Input label="Billing export table" aria-label="Billing export table" required placeholder="project.dataset.gcp_billing_export_v1_…" value={table} onChange={(e) => setTable(e.target.value)}/>
+        : <Input label={provider.keyLabel} aria-label={provider.keyLabel} type="password" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)}/>}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" size="sm" loading={saving}>{id === 'gcp' ? 'Sign in with Google and connect' : replacing ? 'Save new token' : 'Save and connect'}</Button>
+        {replacing && <Button type="button" size="sm" variant="ghost" onClick={() => { setReplacing(false); setKey(''); setError(null) }}>Cancel</Button>}
+      </div>
+    </fieldset>
+  </form>
 
   return <Card>
     <section aria-label={provider.name}>
@@ -85,18 +102,12 @@ function ProviderCard({ provider, spending }: { provider: Provider; spending: Sp
           </p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" disabled={saving} loading={syncing} onClick={() => void refresh()}>Sync now</Button>
+            {provider.secret && !replacing && <Button size="sm" variant="secondary" disabled={syncing || saving} onClick={() => setReplacing(true)}>Replace token</Button>}
             <Button size="sm" variant="danger" disabled={syncing || saving} onClick={() => void disconnect()}>Disconnect</Button>
           </div>
+          {replacing && form}
         </div>
-        : <form onSubmit={(event) => void connect(event)}>
-          <fieldset disabled={saving || syncing} className="min-w-0 space-y-3 border-0 p-0">
-            {id === 'cloudflare' && <Input label="Account ID" aria-label="Account ID" required pattern="[0-9a-f]{32}" value={accountId} onChange={(e) => setAccountId(e.target.value)}/>}
-            {id === 'gcp'
-              ? <Input label="Billing export table" aria-label="Billing export table" required placeholder="project.dataset.gcp_billing_export_v1_…" value={table} onChange={(e) => setTable(e.target.value)}/>
-              : <Input label={provider.keyLabel} aria-label={provider.keyLabel} type="password" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)}/>}
-          <Button type="submit" size="sm" loading={saving}>{id === 'gcp' ? 'Sign in with Google and connect' : 'Save and connect'}</Button>
-          </fieldset>
-        </form>}
+        : form}
     </section>
   </Card>
 }

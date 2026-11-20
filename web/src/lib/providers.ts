@@ -41,11 +41,20 @@ export const PROVIDERS: Provider[] = [
 
 export const providerName = (id: ProviderId) => PROVIDERS.find((p) => p.id === id)!.name
 
+/** A readable message for a failed provider call. Cloudflare's "cannot read this account" is explained; anything else keeps the provider's own words. */
+export function providerError(target: string, status: number, body: string): string {
+  const host = target.split('/')[0]
+  if (host === 'api.cloudflare.com' && (status === 401 || status === 403 || /"code"\s*:\s*10000\b/.test(body))) {
+    return 'Cloudflare says this token cannot read the account. Check that the account ID belongs to the token\'s account and that the token has Billing: Read.'
+  }
+  return `${host} answered ${status}: ${body.slice(0, 300)}`
+}
+
 /** A provider call through the proxy, which injects the signed-in user's own key. */
 async function proxyJson(target: string, init?: RequestInit): Promise<unknown> {
   const res = await app.proxy.fetch(target, init)
   if (res.status === 412) throw new Error('No key saved for this provider yet.')
-  if (!res.ok) throw new Error(`${target.split('/')[0]} answered ${res.status}: ${(await res.text()).slice(0, 300)}`)
+  if (!res.ok) throw new Error(providerError(target, res.status, await res.text()))
   return res.json()
 }
 

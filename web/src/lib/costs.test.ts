@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   compact, compactD1, d1Billing, d1ListCost, d1Summary, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
 } from './costs'
-import { billingCycles, GCP_TABLE_RE, parseAnthropic, parseD1Analytics, parseBigQuery, parseCloudflare, parseOpenAi } from './providers'
+import { billingCycles, GCP_TABLE_RE, parseAnthropic, parseD1Analytics, parseBigQuery, parseCloudflare, parseOpenAi, providerError } from './providers'
 
 const row = (date: string, amount: number, service = 'api', currency = 'USD'): CostRow => ({ date, service, amount, currency })
 
@@ -151,5 +151,20 @@ describe('D1 by database', () => {
   it('orders databases by cost and drops ones with no usage', () => {
     const list = d1Summary([d1('2026-11-20', 1, 0, 'small'), d1('2026-11-20', 0, 5, 'writes'), d1('2026-11-20', 0, 0, 'idle')], today)
     expect(list.map((d) => d.database)).toEqual(['writes', 'small'])
+  })
+})
+
+describe('providerError', () => {
+  it('explains a Cloudflare authentication failure instead of echoing its JSON', () => {
+    const body = '{"success":false,"errors":[{"code":10000,"message":"Authentication error"}]}'
+    const message = providerError('api.cloudflare.com/client/v4/accounts/x/billable-usage', 403, body)
+    expect(message).toContain('account ID')
+    expect(message).toContain('Billing: Read')
+    expect(message).not.toContain('errors')
+  })
+
+  it('keeps the provider body for other failures', () => {
+    expect(providerError('api.openai.com/v1/organization/costs', 503, 'Provider unavailable')).toBe('api.openai.com answered 503: Provider unavailable')
+    expect(providerError('api.cloudflare.com/client/v4/graphql', 500, 'oops')).toBe('api.cloudflare.com answered 500: oops')
   })
 })

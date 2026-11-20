@@ -169,6 +169,7 @@ export function useSpending(userId: string | undefined): Spending {
     const secret = PROVIDERS.find((p) => p.id === id)!.secret
     if (secret) {
       await app.userSecrets.delete(secret)
+      if (id === 'cloudflare') await saveSettings({ cloudflareAccountId: undefined })
       if (version !== lifecycle.current) return
       setSecretNames((names) => {
         const next = new Set(names)
