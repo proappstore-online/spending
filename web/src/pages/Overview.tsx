@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button, Card, EmptyState, Input, PageHeader } from '@proappstore/sdk/ui'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  detectSpike, forecast, formatMoney, formatTotals, isoDay, monthOf, monthTotals, serviceTotals,
+  d1Summary, detectSpike, forecast, formatMoney, formatTotals, isoDay, monthOf, monthTotals, serviceTotals,
   subscriptionTotals, sumTotals, type ProviderId, type Totals,
 } from '../lib/costs'
 import { PROVIDERS, providerName } from '../lib/providers'
@@ -105,6 +105,7 @@ export function Overview({ spending, onNavigate }: { spending: Spending; onNavig
             </ul>}
         </Card>
       })}
+      {costs.cloudflare && <D1ByDatabase cloudflare={costs.cloudflare} today={today}/>}
       {subscriptions.length > 0 && <Card>
         <h2 className="mb-3 text-lg font-bold">Subscriptions</h2>
         <p className="mb-3 text-2xl font-extrabold">{formatTotals(subs)}<span className="text-sm font-normal text-[var(--muted)]"> per month</span></p>
@@ -117,6 +118,45 @@ export function Overview({ spending, onNavigate }: { spending: Spending; onNavig
       </Card>}
     </div>
   </Page>
+}
+
+const rowCount = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 })
+
+function D1ByDatabase({ cloudflare, today }: { cloudflare: NonNullable<Spending['costs']['cloudflare']>; today: Date }) {
+  const databases = d1Summary(cloudflare.d1 ?? [], today)
+  return <section aria-label="Cloudflare D1 by database" className="md:col-span-2">
+    <Card>
+      <h2 className="mb-1 text-lg font-bold">Cloudflare D1 by database</h2>
+      <p className="mb-3 text-xs text-[var(--muted)]">This month, at list price before the plan's included allowance. The week columns compare rows read over the last 7 full days with the 7 before.</p>
+      {cloudflare.d1Error && <p role="alert" className="mb-3 text-sm text-[var(--danger)]">
+        D1 usage did not sync: {cloudflare.d1Error} The token needs Account Analytics: Read and D1: Read.
+      </p>}
+      {databases.length === 0
+        ? !cloudflare.d1Error && <p className="text-sm text-[var(--muted)]">No D1 usage reported.</p>
+        : <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-[var(--muted)]">
+              <tr><th className="py-1 font-semibold">Database</th><th className="text-right font-semibold">Rows read</th><th className="text-right font-semibold">Rows written</th><th className="text-right font-semibold">Cost</th><th className="text-right font-semibold">Last 7 days</th><th className="text-right font-semibold">Change</th></tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--line)]">
+              {databases.map((d) => {
+                const change = d.prior7 ? (d.last7 - d.prior7) / d.prior7 : null
+                return <tr key={d.database}>
+                  <td className="max-w-48 truncate py-1">{d.database}</td>
+                  <td className="text-right">{rowCount.format(d.rowsRead)}</td>
+                  <td className="text-right">{rowCount.format(d.rowsWritten)}</td>
+                  <td className="text-right">{formatMoney(d.cost, 'USD')}</td>
+                  <td className="text-right">{rowCount.format(d.last7)}</td>
+                  <td className="text-right" style={{ color: change === null ? 'var(--muted)' : change < 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {change === null ? 'new' : `${change > 0 ? '+' : ''}${Math.round(change * 100)}%`}
+                  </td>
+                </tr>
+              })}
+            </tbody>
+          </table>
+        </div>}
+    </Card>
+  </section>
 }
 
 function Page({ children }: { children: React.ReactNode }) {

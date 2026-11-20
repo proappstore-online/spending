@@ -4,7 +4,7 @@
     {
       "name": "CLOUDFLARE_API_TOKEN",
       "label": "Cloudflare API token",
-      "description": "A token with Billing: Read, used only to read your account's billable usage."
+      "description": "A token with Billing: Read (plus Account Analytics: Read and D1: Read for D1 per database), used only to read your account's usage and costs."
     },
     {
       "name": "OPENAI_ADMIN_KEY",

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  compact, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
+  compact, d1ListCost, d1Summary, detectSpike, forecast, monthTotals, subscriptionTotals, sumTotals, syncStart, type CostRow,
 } from './costs'
-import { billingCycles, GCP_TABLE_RE, parseAnthropic, parseBigQuery, parseCloudflare, parseOpenAi } from './providers'
+import { billingCycles, GCP_TABLE_RE, parseAnthropic, parseD1Analytics, parseBigQuery, parseCloudflare, parseOpenAi } from './providers'
 
 const row = (date: string, amount: number, service = 'api', currency = 'USD'): CostRow => ({ date, service, amount, currency })
 
@@ -82,5 +82,40 @@ describe('provider parsers', () => {
   it('accepts only a plain project.dataset.table name', () => {
     expect(GCP_TABLE_RE.test('my-project.billing.gcp_billing_export_v1_0123AB')).toBe(true)
     expect(GCP_TABLE_RE.test('my-project.billing.t` WHERE 1=1 --')).toBe(false)
+  })
+})
+
+describe('D1 by database', () => {
+  const today = new Date('2026-11-21T08:00:00Z')
+  const d1 = (date: string, rowsRead: number, rowsWritten = 0, database = 'pas-data-hiring') => ({ date, database, rowsRead, rowsWritten })
+
+  it('names databases from the list and fails on GraphQL errors', () => {
+    const json = { data: { viewer: { accounts: [{ d1AnalyticsAdaptiveGroups: [
+      { sum: { rowsRead: 5, rowsWritten: 1 }, dimensions: { date: '2026-11-20', databaseId: 'a' } },
+      { sum: { rowsRead: 2, rowsWritten: 0 }, dimensions: { date: '2026-11-20', databaseId: 'b' } },
+    ] }] } }, errors: null }
+    expect(parseD1Analytics(json, new Map([['a', 'pas-data-hiring']]))).toEqual([
+      d1('2026-11-20', 5, 1), d1('2026-11-20', 2, 0, 'b'),
+    ])
+    expect(() => parseD1Analytics({ errors: [{ message: 'not authorized' }] }, new Map())).toThrow('not authorized')
+  })
+
+  it('prices rows at list price', () => {
+    expect(d1ListCost(2_000_000_000, 3_000_000)).toBeCloseTo(5)
+  })
+
+  it('sums this month and compares the last full week with the one before, skipping today', () => {
+    const [hiring] = d1Summary([
+      d1('2026-10-31', 999), // last month: weeks only
+      d1('2026-11-07', 100), d1('2026-11-13', 100), // prior 7 days (7th–13th)
+      d1('2026-11-14', 10, 2), d1('2026-11-20', 10), // last 7 days (14th–20th)
+      d1('2026-11-21', 1000), // today, still accruing
+    ], today)
+    expect(hiring).toMatchObject({ rowsRead: 1220, rowsWritten: 2, last7: 20, prior7: 200 })
+  })
+
+  it('orders databases by cost and drops ones with no usage', () => {
+    const list = d1Summary([d1('2026-11-20', 1, 0, 'small'), d1('2026-11-20', 0, 5, 'writes'), d1('2026-11-20', 0, 0, 'idle')], today)
+    expect(list.map((d) => d.database)).toEqual(['writes', 'small'])
   })
 })

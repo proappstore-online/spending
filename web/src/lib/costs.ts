@@ -8,11 +8,22 @@ export interface CostRow {
   currency: string
 }
 
+/** One Cloudflare D1 database's usage on one UTC day. */
+export interface D1UsageRow {
+  date: string // YYYY-MM-DD
+  database: string
+  rowsRead: number
+  rowsWritten: number
+}
+
 export interface ProviderCosts {
   /** Time of the last successful fetch, or zero if no fetch has succeeded. */
   syncedAt: number
   rows: CostRow[]
   error?: string
+  /** Cloudflare only: D1 usage per database, which the bill does not break down. */
+  d1?: D1UsageRow[]
+  d1Error?: string
 }
 
 export interface Subscription {
@@ -148,6 +159,41 @@ export function detectSpike(rows: CostRow[], today: Date): Spike | null {
     }
   }
   return worst
+}
+
+/** D1 list price in USD, before the plan's included allowance: $0.001 per million rows read, $1 per million written. */
+export const d1ListCost = (rowsRead: number, rowsWritten: number) => rowsRead / 1e6 * 0.001 + rowsWritten / 1e6
+
+export interface D1Summary {
+  database: string
+  rowsRead: number
+  rowsWritten: number
+  cost: number
+  /** Rows read over the last 7 full days, and over the 7 days before those. */
+  last7: number
+  prior7: number
+}
+
+/** Per database: this month's rows and list-price cost, and rows read in the last two full weeks. */
+export function d1Summary(rows: D1UsageRow[], today: Date): D1Summary[] {
+  const month = monthOf(isoDay(today))
+  const daysAgo = (n: number) => isoDay(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - n)))
+  const [weekStart, priorStart, todayIso] = [daysAgo(7), daysAgo(14), isoDay(today)]
+  const map = new Map<string, D1Summary>()
+  for (const r of rows) {
+    const s = map.get(r.database) ?? { database: r.database, rowsRead: 0, rowsWritten: 0, cost: 0, last7: 0, prior7: 0 }
+    if (monthOf(r.date) === month) {
+      s.rowsRead += r.rowsRead
+      s.rowsWritten += r.rowsWritten
+    }
+    if (r.date >= weekStart && r.date < todayIso) s.last7 += r.rowsRead
+    else if (r.date >= priorStart && r.date < weekStart) s.prior7 += r.rowsRead
+    map.set(r.database, s)
+  }
+  return [...map.values()]
+    .map((s) => ({ ...s, cost: d1ListCost(s.rowsRead, s.rowsWritten) }))
+    .filter((s) => s.rowsRead || s.rowsWritten || s.last7 || s.prior7)
+    .sort((a, b) => b.cost - a.cost || b.last7 - a.last7)
 }
 
 export function formatMoney(amount: number, currency: string): string {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { app } from './app'
 import { compact, type ProviderCosts, type ProviderId, type Settings, type Subscription } from './costs'
-import { fetchCosts, PROVIDERS } from './providers'
+import { fetchCosts, fetchD1Usage, PROVIDERS } from './providers'
 import { requestGoogleToken } from './google'
 
 const STALE_MS = 6 * 60 * 60 * 1000
@@ -55,6 +55,11 @@ export function useSpending(userId: string | undefined): Spending {
         if (id === 'gcp' && !googleToken.current) googleToken.current = await requestGoogleToken()
         if (version !== lifecycle.current) return false
         result = { syncedAt: Date.now(), rows: compact(await fetchCosts(id, settingsRef.current, googleToken.current)) }
+        if (id === 'cloudflare') {
+          const d1 = await fetchD1Usage(settingsRef.current)
+          // A failed D1 read keeps the last good per-database rows, like a failed cost sync.
+          result = { ...result, d1: d1.d1 ?? costsRef.current.cloudflare?.d1, d1Error: d1.d1Error }
+        }
       } catch (error) {
         if (version !== lifecycle.current) return false
         if (id === 'gcp') googleToken.current = null

@@ -1,5 +1,5 @@
 import { app } from './app'
-import { isoDay, syncStart, type CostRow, type ProviderId, type Settings } from './costs'
+import { isoDay, syncStart, type CostRow, type D1UsageRow, type ProviderCosts, type ProviderId, type Settings } from './costs'
 
 export interface Provider {
   id: ProviderId
@@ -16,7 +16,7 @@ export const PROVIDERS: Provider[] = [
     name: 'Cloudflare',
     secret: 'CLOUDFLARE_API_TOKEN',
     keyLabel: 'API token',
-    help: 'An API token with the Billing: Read permission, plus your account ID. Pay-as-you-go accounts only.',
+    help: 'An API token with Billing: Read, plus your account ID. Pay-as-you-go accounts only. Add Account Analytics: Read and D1: Read to see D1 usage per database.',
   },
   {
     id: 'openai',
@@ -179,6 +179,60 @@ async function fetchCloudflare(settings: Settings, today: Date): Promise<CostRow
     rows.push(...parseCloudflare(await proxyJson(`${base}?from=${isoDay(from)}&to=${isoDay(to)}`)))
   }
   return rows
+}
+
+// --- Cloudflare D1 per database: GraphQL analytics, which the bill does not break down ---
+
+interface D1Analytics {
+  data?: { viewer?: { accounts?: { d1AnalyticsAdaptiveGroups?: { sum: { rowsRead: number; rowsWritten: number }; dimensions: { date: string; databaseId: string } }[] }[] } }
+  errors?: { message: string }[] | null
+}
+
+export function parseD1Analytics(json: unknown, names: Map<string, string>): D1UsageRow[] {
+  const { data, errors } = json as D1Analytics
+  if (errors?.length) throw new Error(errors.map((e) => e.message).join('; '))
+  return (data?.viewer?.accounts?.[0]?.d1AnalyticsAdaptiveGroups ?? []).map(({ sum, dimensions }) => ({
+    date: dimensions.date,
+    database: names.get(dimensions.databaseId) ?? dimensions.databaseId,
+    rowsRead: sum.rowsRead,
+    rowsWritten: sum.rowsWritten,
+  }))
+}
+
+const D1_QUERY = `query ($account: string!, $from: Date!, $to: Date!) {
+  viewer { accounts(filter: { accountTag: $account }) {
+    d1AnalyticsAdaptiveGroups(limit: 10000, filter: { date_geq: $from, date_leq: $to }, orderBy: [date_ASC]) {
+      sum { rowsRead rowsWritten }
+      dimensions { date databaseId }
+    }
+  } }
+}`
+
+/** D1 rows read and written per database per day since the start of last month. Never throws: a failure is `d1Error`. */
+export async function fetchD1Usage(settings: Settings, today = new Date()): Promise<Pick<ProviderCosts, 'd1' | 'd1Error'>> {
+  const account = settings.cloudflareAccountId
+  try {
+    const names = new Map<string, string>()
+    for (let page = 1; ; page++) {
+      const json = (await proxyJson(`api.cloudflare.com/client/v4/accounts/${account}/d1/database?per_page=100&page=${page}`)) as { result?: { uuid: string; name: string }[] }
+      for (const db of json.result ?? []) names.set(db.uuid, db.name)
+      if ((json.result?.length ?? 0) < 100) break
+    }
+    const rows: D1UsageRow[] = []
+    // One calendar month per query keeps each request inside the dataset's time-range limit.
+    const thisMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
+    const lastDayOfLastMonth = new Date(thisMonth.getTime() - 86400000)
+    for (const [from, to] of [[syncStart(today), lastDayOfLastMonth], [thisMonth, today]] as const) {
+      rows.push(...parseD1Analytics(await proxyJson('api.cloudflare.com/client/v4/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: D1_QUERY, variables: { account, from: isoDay(from), to: isoDay(to) } }),
+      }), names))
+    }
+    return { d1: rows }
+  } catch (error) {
+    return { d1Error: error instanceof Error ? error.message : String(error) }
+  }
 }
 
 // --- Google Cloud: BigQuery billing export, read with the user's Google token ---
