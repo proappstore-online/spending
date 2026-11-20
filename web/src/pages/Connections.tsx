@@ -22,52 +22,81 @@ function ProviderCard({ provider, spending }: { provider: Provider; spending: Sp
   const [accountId, setAccountId] = useState(spending.settings.cloudflareAccountId ?? '')
   const [table, setTable] = useState(spending.settings.gcpTable ?? '')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function connect(event: React.FormEvent) {
     event.preventDefault()
+    if (saving || syncing) return
     setSaving(true)
+    setError(null)
     try {
+      let synced: boolean
       if (id === 'cloudflare') await spending.saveSettings({ cloudflareAccountId: accountId.trim() })
       if (id === 'gcp') {
         if (!GCP_TABLE_RE.test(table.trim())) throw new Error('The table must look like project.dataset.table.')
         await spending.saveSettings({ gcpTable: table.trim() })
-        await spending.sync(id)
+        synced = await spending.sync(id)
       } else {
-        await spending.saveKey(id, key.trim())
+        synced = await spending.saveKey(id, key.trim())
         setKey('')
       }
-      toast.show(`${provider.name} connected.`, { variant: 'success' })
+      if (synced) toast.show(`${provider.name} connected and synced.`, { variant: 'success' })
+      else setError('Connection saved, but costs could not be synced. Check the error below and try again.')
     } catch (error) {
-      toast.show(error instanceof Error ? error.message : String(error), { variant: 'error' })
+      setError(error instanceof Error ? error.message : String(error))
     } finally {
       setSaving(false)
     }
   }
 
-  return <Card>
-    <div className="mb-2 flex items-center justify-between gap-3">
-      <h2 className="text-lg font-bold">{provider.name}</h2>
-      <span className="text-sm" style={{ color: connected ? 'var(--success)' : 'var(--muted)' }}>{connected ? 'Connected' : 'Not connected'}</span>
-    </div>
-    <p className="mb-4 text-sm text-[var(--muted)]">{provider.help}</p>
+  async function disconnect() {
+    if (saving || syncing) return
+    setSaving(true)
+    setError(null)
+    try {
+      await spending.disconnect(id)
+      toast.show(`${provider.name} disconnected.`, { variant: 'success' })
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSaving(false)
+    }
+  }
 
-    {connected
-      ? <div className="space-y-3">
-        <p className="text-sm">
-          {cost ? `Last synced ${new Date(cost.syncedAt).toLocaleString()}.` : 'Not synced yet.'}
-          {cost?.error && <span style={{ color: 'var(--danger)' }}> {cost.error}</span>}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" loading={syncing} onClick={() => void spending.sync(id)}>Sync now</Button>
-          <Button size="sm" variant="danger" onClick={() => void spending.disconnect(id)}>Disconnect</Button>
-        </div>
+  async function refresh() {
+    setError(null)
+    await spending.sync(id)
+  }
+
+  return <Card>
+    <section aria-label={provider.name}>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">{provider.name}</h2>
+        <span className="text-sm" style={{ color: connected ? 'var(--success)' : 'var(--muted)' }}>{connected ? 'Connected' : 'Not connected'}</span>
       </div>
-      : <form className="space-y-3" onSubmit={(event) => void connect(event)}>
-          {id === 'cloudflare' && <Input label="Account ID" aria-label="Account ID" required pattern="[0-9a-f]{32}" value={accountId} onChange={(e) => setAccountId(e.target.value)}/>}
-          {id === 'gcp'
-            ? <Input label="Billing export table" aria-label="Billing export table" required placeholder="project.dataset.gcp_billing_export_v1_…" value={table} onChange={(e) => setTable(e.target.value)}/>
-            : <Input label={provider.keyLabel} aria-label={provider.keyLabel} type="password" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)}/>}
-        <Button type="submit" size="sm" loading={saving}>{id === 'gcp' ? 'Sign in with Google and connect' : 'Save and connect'}</Button>
-      </form>}
+      <p className="mb-4 text-sm text-[var(--muted)]">{provider.help}</p>
+
+      {error && <p role="alert" className="mb-3 text-sm text-[var(--danger)]">{error}</p>}
+      {connected
+        ? <div className="space-y-3">
+          <p className="text-sm">
+            {cost?.syncedAt ? `Last synced ${new Date(cost.syncedAt).toLocaleString()}.` : 'Not synced yet.'}
+            {cost?.error && <span role="alert" className="block text-[var(--danger)]">{cost.error}</span>}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={saving} loading={syncing} onClick={() => void refresh()}>Sync now</Button>
+            <Button size="sm" variant="danger" disabled={syncing || saving} onClick={() => void disconnect()}>Disconnect</Button>
+          </div>
+        </div>
+        : <form onSubmit={(event) => void connect(event)}>
+          <fieldset disabled={saving || syncing} className="min-w-0 space-y-3 border-0 p-0">
+            {id === 'cloudflare' && <Input label="Account ID" aria-label="Account ID" required pattern="[0-9a-f]{32}" value={accountId} onChange={(e) => setAccountId(e.target.value)}/>}
+            {id === 'gcp'
+              ? <Input label="Billing export table" aria-label="Billing export table" required placeholder="project.dataset.gcp_billing_export_v1_…" value={table} onChange={(e) => setTable(e.target.value)}/>
+              : <Input label={provider.keyLabel} aria-label={provider.keyLabel} type="password" autoComplete="off" required value={key} onChange={(e) => setKey(e.target.value)}/>}
+          <Button type="submit" size="sm" loading={saving}>{id === 'gcp' ? 'Sign in with Google and connect' : 'Save and connect'}</Button>
+          </fieldset>
+        </form>}
+    </section>
   </Card>
 }

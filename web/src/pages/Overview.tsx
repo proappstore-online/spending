@@ -143,17 +143,39 @@ function Budget({ spending, total, projected }: { spending: Spending; total: Tot
   const [editing, setEditing] = useState(false)
   const [amount, setAmount] = useState(String(budget ?? ''))
   const [currency, setCurrency] = useState(budgetCurrency)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function saveBudget(event: React.FormEvent) {
+    event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await spending.saveSettings({ budget: Number(amount) || undefined, budgetCurrency: currency.toUpperCase() })
+      setEditing(false)
+    } catch {
+      setError('Could not save your budget. Your changes are still here; try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (editing || !budget) {
     return <Card>
-      <form className="space-y-2" onSubmit={(event) => {
-        event.preventDefault()
-        void spending.saveSettings({ budget: Number(amount) || undefined, budgetCurrency: currency.toUpperCase() })
-        setEditing(false)
-      }}>
-        <Input label="Monthly budget" aria-label="Monthly budget" type="number" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)}/>
-        <Input label="Currency" aria-label="Currency" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value)}/>
-        <Button type="submit" size="sm">Save budget</Button>
+      <form onSubmit={(event) => void saveBudget(event)}>
+        {error && <p role="alert" className="mb-2 text-sm text-[var(--danger)]">{error}</p>}
+        <fieldset disabled={saving} className="min-w-0 space-y-2 border-0 p-0">
+          <Input label="Monthly budget" aria-label="Monthly budget" type="number" min="0" step="any" value={amount} onChange={(e) => setAmount(e.target.value)}/>
+          <Input label="Currency" aria-label="Currency" required pattern="[A-Za-z]{3}" maxLength={3} value={currency} onChange={(e) => setCurrency(e.target.value)}/>
+          <Button type="submit" size="sm" loading={saving}>Save budget</Button>
+          {budget && <Button type="button" size="sm" variant="ghost" onClick={() => {
+            setAmount(String(budget))
+            setCurrency(budgetCurrency)
+            setError(null)
+            setEditing(false)
+          }}>Cancel</Button>}
+        </fieldset>
       </form>
     </Card>
   }

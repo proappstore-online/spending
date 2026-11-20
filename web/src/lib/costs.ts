@@ -9,6 +9,7 @@ export interface CostRow {
 }
 
 export interface ProviderCosts {
+  /** Time of the last successful fetch, or zero if no fetch has succeeded. */
   syncedAt: number
   rows: CostRow[]
   error?: string

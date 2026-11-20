@@ -7,12 +7,13 @@ export default defineConfig({
   // #393: hidden source maps — no sourceMappingURL in the bundle. The canonical
   // deploy uploads them privately for this commit and strips them before the
   // public upload, so they are never served (docs/build-and-deploy.md).
-  build: { sourcemap: 'hidden' },
+  build: { sourcemap: 'hidden', manifest: true },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'inline',
       workbox: {
         // No map for the service worker either, and none in the precache (#393).
         sourcemap: false,

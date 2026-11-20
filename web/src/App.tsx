@@ -39,7 +39,6 @@ export default function App() {
 
 function Screens({ path }: { path: string }) {
   const { user } = useAuth()
-  const spending = useSpending(user?.id)
   if (path === '/profile') return <Profile/>
   if (!user) {
     return <div className="mx-auto w-full max-w-3xl px-6 py-10">
@@ -47,6 +46,11 @@ function Screens({ path }: { path: string }) {
       <EmptyState title="Sign in to start" description="Your keys and costs are private to your account." action={<SignInButtons app={app}/>}/>
     </div>
   }
+  return <SpendingScreens key={user.id} userId={user.id} path={path}/>
+}
+
+function SpendingScreens({ userId, path }: { userId: string; path: string }) {
+  const spending = useSpending(userId)
   if (spending.loading) return <div className="flex justify-center py-20"><Spinner/></div>
   if (spending.loadError) return <div className="mx-auto w-full max-w-3xl px-6 py-10"><EmptyState title="Could not load your data" description={spending.loadError}/></div>
   if (path === '/connections') return <Connections spending={spending}/>

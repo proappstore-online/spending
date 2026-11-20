@@ -5,7 +5,7 @@ https://spending.proappstore.online
 
 - **Connectors:** Cloudflare, OpenAI, Anthropic and Google Cloud. Each user connects
   their own account; the app adds up daily cost per provider and service.
-- **Subscriptions:** flat costs you enter by hand (monthly or yearly).
+- **Subscriptions:** add, edit and remove flat costs (monthly or yearly).
 - **Overview:** month-to-date total, projected month end, a monthly budget, a daily
   chart, and a warning when a provider's latest full day costs more than twice its
   average over the week before.
@@ -19,7 +19,8 @@ key. Google Cloud is the exception: it reads the user's BigQuery billing export 
 read-only Google access token held in memory.
 
 Settings, subscriptions and cached costs live in per-user KV. The app has no shared
-tables.
+tables. Failed provider refreshes keep the last successful costs and timestamp;
+connection and storage failures are shown on the Connections page so you can retry.
 
 ## Proxy rules (owner, once)
 
