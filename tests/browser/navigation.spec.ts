@@ -9,10 +9,10 @@ for (const signedIn of [false, true]) {
     await page.goto('/', {waitUntil:'domcontentloaded'})
     const header=page.getByRole('banner'), nav=header.getByRole('navigation',{name:'Main'}), profile=header.getByRole('button',{name:'Open profile',exact:true})
     await expect(profile).toBeVisible()
-    await expect(nav.getByRole('link')).toHaveCount(3)
+    await expect(nav.getByRole('link')).toHaveCount(4)
     await expect(header.getByRole('button',{name:/menu|sign in|text:/i})).toHaveCount(0)
     await expect(nav.getByRole('link',{name:'Profile',exact:true})).toHaveCount(0)
-    for(const target of [header.getByRole('link').first(),profile,nav.getByRole('link').nth(0),nav.getByRole('link').nth(1),nav.getByRole('link').nth(2)]) {
+    for(const target of [header.getByRole('link').first(),profile,nav.getByRole('link').nth(0),nav.getByRole('link').nth(1),nav.getByRole("link").nth(2),nav.getByRole("link").nth(3)]) {
       const box=await target.boundingBox();expect(box!.width).toBeGreaterThanOrEqual(44);expect(box!.height).toBeGreaterThanOrEqual(44)
     }
     if(isMobile) expect((await header.boundingBox())!.height).toBeLessThanOrEqual(64)

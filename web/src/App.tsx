@@ -4,6 +4,7 @@ import { Card, EmptyState, PageHeader, ProProfilePage, SignInButtons, Spinner, T
 import { AppTopbar, IconNavigation, NavigationIcon } from './AppNavigation'
 import { app } from './lib/app'
 import { useSpending } from './lib/useSpending'
+import { GCP_ROOT, GoogleCloud } from './pages/GoogleCloud'
 import { Connections } from './pages/Connections'
 import { Overview } from './pages/Overview'
 import { Subscriptions } from './pages/Subscriptions'
@@ -14,6 +15,7 @@ const NAV: NavItem[] = [
   { label: 'Overview', href: '/', title: 'Spending', icon: <NavigationIcon path="M4 20V10m6 10V4m6 16v-7m4 7H2"/> },
   { label: 'Connections', href: '/connections', title: 'Connections — Spending', icon: <NavigationIcon path="M9 7H7a5 5 0 0 0 0 10h2m6-10h2a5 5 0 0 1 0 10h-2M8 12h8"/> },
   { label: 'Subscriptions', href: '/subscriptions', title: 'Subscriptions — Spending', icon: <NavigationIcon path="M3 7h18v10H3V7Zm0 4h18M7 15h3"/> },
+  { label: 'Google Cloud', href: GCP_ROOT, title: 'Google Cloud — Spending', icon: <NavigationIcon path="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 8.5a4.75 4.75 0 0 1 .5 9.5H7Z"/> },
   { label: 'Profile', href: '/profile', title: 'Profile — Spending' },
 ]
 
@@ -54,6 +56,7 @@ function SpendingScreens({ userId, path }: { userId: string; path: string }) {
   if (spending.loading) return <div className="flex justify-center py-20"><Spinner/></div>
   if (spending.loadError) return <div className="mx-auto w-full max-w-3xl px-6 py-10"><EmptyState title="Could not load your data" description={spending.loadError}/></div>
   if (path === '/connections') return <Connections spending={spending}/>
+  if (path === GCP_ROOT || path.startsWith(`${GCP_ROOT}/`)) return <GoogleCloud userId={userId} path={path} onNavigate={navigate}/>
   if (path === '/subscriptions') return <Subscriptions spending={spending}/>
   return <Overview spending={spending} onNavigate={navigate}/>
 }

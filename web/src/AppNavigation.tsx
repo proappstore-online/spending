@@ -17,7 +17,7 @@ export function IconNavigation({ items, currentPath, onNavigate, activity }: App
   return <nav aria-label="Main" className="flex min-w-0 flex-1">
     <ul className="m-0 flex w-full list-none items-center justify-evenly gap-1 p-0 sm:justify-start">
       {items.filter(item => item.href !== '/profile').map(item => <li key={item.href}>
-        <a href={item.href} title={item.label} aria-current={currentPath === item.href ? 'page' : undefined}
+        <a href={item.href} title={item.label} aria-current={currentPath === item.href || (item.href !== '/' && currentPath.startsWith(`${item.href}/`)) ? 'page' : undefined}
           onClick={event => follow(event, item.href, onNavigate)}
           className="relative flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-[10px] text-sm font-semibold text-[var(--muted)] no-underline aria-[current=page]:bg-[var(--line)] aria-[current=page]:text-[var(--accent)] sm:px-3">
           {item.icon ?? <NavigationIcon path="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/>}
